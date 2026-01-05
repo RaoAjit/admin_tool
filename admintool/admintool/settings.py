@@ -122,7 +122,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
-EMAIL_HOST_USER = 'raoajit033@gmail.com'
-EMAIL_HOST_PASSWORD = 'yszksfxvadhrjtlk'  # Gmail App Password
+EMAIL_HOST_USER = 'your email'#to use sending otp 
+EMAIL_HOST_PASSWORD = 'app password 16 letters'  # Gmail App Password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
