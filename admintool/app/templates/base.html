@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard / File Browser</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- ✅ jQuery (MUST BE FIRST) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- ✅ DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <style>
+    body { background:#121212; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; color:#f0f0f0; overflow: hidden; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:15px 25px; background-color:#1f1f1f; border-bottom:1px solid #333; }
+    header h2 { margin:0; font-weight:600; }
+    #searchBox { width:300px; padding:8px 12px; border-radius:25px; border:none; outline:none; background-color:#2b2b2b; color:#f0f0f0; font-size:14px; }
+    #searchBox::placeholder { color:#aaa; }
+    button { padding:8px 16px; border-radius:12px; border:none; cursor:pointer; font-size:14px; margin-left:10px; transition: all 0.3s ease; font-weight:500; }
+    button a { text-decoration: none; }
+    #editBtn{background-color:#ffcc00;color:#111;} #editBtn:hover{background-color:#ffdb4d;}
+    #saveBtn{background-color:#4caf50;color:#fff;} #saveBtn:hover{background-color:#66bb6a;}
+    #logoutBtn{background-color:#d84315;color:#fff;} #logoutBtn:hover{background-color:#ff5722;}
+    #toast{visibility:hidden;min-width:250px;background-color:#4caf50;color:white;text-align:center;border-radius:8px;padding:12px 20px;position:fixed;top:80px;right:20px;opacity:0;transition:opacity 0.5s ease, visibility 0.2s;z-index:1000;}
+    #toast.show{visibility:visible;opacity:1;}
+    .card { background:#2b2b2b; padding:12px 18px; border-radius:8px; margin:8px; display:inline-block; min-width:120px; text-align:center; }
+    #statsContainer { display:flex; flex-wrap:wrap; gap:10px; }
+    ul { list-style:none; padding-left:0; }
+    li { background:#2b2b2b; padding:8px 12px; margin:6px 0; border-radius:6px; word-wrap: break-word; }
+    mark { background: yellow; color: black; }
+    /* DataTables Dark Theme */
+    .dataTables_wrapper { color: #f0f0f0; }
+    .dataTables_filter input,
+    .dataTables_length select { background: #2b2b2b; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 4px 8px; }
+    table.dataTable thead { background: #1f1f1f; }
+    table.dataTable tbody tr { background-color: #121212; }
+    table.dataTable tbody tr:hover { background-color: #1e1e1e; }
+    .dataTables_paginate .paginate_button { color: #fff !important; }
+    #mainFlex { display: flex; height: calc(100vh - 80px); width: 100vw; overflow: hidden; }
+    #leftSidebar { flex: 0 0 60px; transition: flex 0.3s ease; background:#070707; overflow-y:auto; }
+    #leftSidebar:hover { flex: 0 0 250px; }
+    #rightContent { flex: 1; overflow:auto; }
+    </style>
+</head>
+<body>
+
+<header>
+<h2>Welcome, {{ request.user.username }} <a href="{% url 'dashboard' %}"><button style="background-color: cornflowerblue;">Dashboard</button></a></h2>
+
+<div style="display: flex; justify-content: center;">
+    <div style="position:relative; display:inline-block; width:100%; max-width:300px;">
+    <i class="fa-solid fa-user" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#8ab4f8; pointer-events:none;"></i>
+
+    <select style="width:100%; padding:10px 14px 10px 38px; font-size:14px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:#1f1f1f; color:#f0f0f0; border:1px solid #444; border-radius:6px; appearance:none; cursor:pointer;">
+        <option value="">{{ request.user.username }}</option>
+        {% if request.user.is_superuser %}
+            <option value="">user_type: Admin</option>
+        {% else %}
+            <option value="">user_type: Staff</option>
+        {% endif %}
+        {% for detail in userdetail %}
+            <option value="{{ detail.section }}">{{ detail.section }} - {{ detail.permission }}</option>
+        {% endfor %}
+    </select>
+</div>
+    <button id="logoutBtn"><a href="{% url 'logout' %}" style="color:white;text-decoration:none;">Logout</a></button>
+</div>
+</header>
+
+<div id="toast"></div>
+
+<div class="panel-buttons" style="margin-bottom:10px; display:flex; gap:10px; flex-wrap: wrap; margin-left: 20px;">
+    {% for apipoints in apilist %}
+        {% for key, value in apipoints.items %}
+            <a href="/{{ value }}/" style="text-decoration:none; color:#4fc3f7; display:flex; align-items:center; gap:5px; font-size:14px;">
+                <i class="fa-solid fa-cube"></i>
+                <span>{{ key }}</span>
+            </a>
+        {% endfor %}
+    {% endfor %}
+</div>
+
+<!-- Breadcrumb -->
+<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#1f1f1f;border-radius:6px;margin-bottom:10px;font-size:14px; margin-left: 5px;">
+    <div>
+        {% for crumb in breadcrumbs %}
+            {% if not forloop.last %}
+               <a href="{{ crumb.url }}" style="color:#4fc3f7;text-decoration:none;">{{ crumb.name }}</a>
+               <span style="color:#888;"> › </span>
+            {% else %}
+               <span style="color:#fff;font-weight:500;">{{ crumb.name }}</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if can_edit and pathforupdate %}
+<div>
+    {% if pathforupdate %}
+   <input type="text" id="searchBox" placeholder="Search..." oninput="searchHighlight()"/>
+    {% endif %}
+    <button id="editBtn" onclick="enableEdit()">Edit</button>
+    <button id="saveBtn" onclick="submitForm()" style="display:none;">Save</button>
+    <button id="cancelBtn" onclick="cancelEdit()" style="display:none;">Cancel</button>
+</div>
+{% endif %}
+
+</div>
+
+{% block content %}
+<div style="display: flex; height: 74vh; width: 100vw; font-family: monospace;">
+   <!-- Left Sidebar -->
+   <div style="width: 20%; background-color: #070707; overflow: auto; padding: 10px; box-sizing: border-box;">
+    <ul>
+    {% for item in path %}
+        <li>
+            <a href="/{{ section }}/{{ item.path|urlencode }}" style="color:#fff;text-decoration:none;display:flex;gap:6px;align-items:center;">
+                {% if item.is_file %}📄 {{ item.name }}{% else %}📁 {{ item.name }}{% endif %}
+            </a>
+        </li>
+    {% endfor %}
+    </ul>
+</div>
+
+   <!-- Right Content -->
+<div style="width: 80%; background-color: #070707; overflow: auto; padding: 10px; box-sizing: border-box;">
+{% if pathforupdate %}
+    <form id="contentForm" method="POST" action="{% url 'updatedata' pathforupdate %}">
+        {% csrf_token %}
+        <input type="hidden" name="content" id="hiddenContent">
+        <div id="content" contenteditable="false" style="width:100%;height:550px;font-family:monospace;background:#070707;color:#f0f0f0;padding:10px;white-space:pre-wrap;border-radius:4px;">{{ content|default_if_none:"" }}</div>
+    </form>
+{% else %}
+    <table id="fileTable" style="width:100%;border-collapse:collapse;color:#fff;font-size:14px;">
+        <thead>
+            <tr style="background:#1f1f1f;">
+                <th style="padding:8px;text-align:left;">Name</th>
+                <th style="padding:8px;text-align:center;">Type</th>
+                <th style="padding:8px;text-align:center;">Size(kb)</th>
+                <th style="padding:8px;text-align:center;">Modified</th>
+                <th style="padding:8px;text-align:center;">Created</th>
+            </tr>
+        </thead>
+        <tbody>
+       {% for item in path %}
+    <tr style="border-bottom:1px solid #333;">
+        <td style="padding:8px;">
+            <a href="/{{ section }}/{{ item.path|urlencode }}" style="color:#4fc3f7;text-decoration:none;">
+                {% if item.is_file %}📄{% else %}📁{% endif %} {{ item.name }}
+            </a>
+        </td>
+        <td style="padding:8px;text-align:center;">{% if item.is_file %}File{% else %}Folder{% endif %}</td>
+        <td style="padding:8px;text-align:center;">{% if item.is_file %}{{ item.size }} {% else %}—{% endif %}</td>
+        <td style="padding:8px;text-align:center;">{{ item.modified|date:"Y-m-d H:i" }}</td>
+        <td style="padding:8px;text-align:center;">{{ item.created|date:"Y-m-d H:i" }}</td>
+    </tr>
+{% empty %}
+    <tr>
+        <td colspan="5" style="padding:15px;text-align:center;color:#888;">Empty folder</td>
+    </tr>
+{% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+</div>
+{% endblock %}
+
+<script>
+function showToast(message, color = "#4caf50") {
+    const toast = document.getElementById("toast");
+    toast.innerText = message;
+    toast.style.backgroundColor = color;
+    toast.className = "show";
+    setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 2000);
+}
+
+{% if messages %}
+    {% for message in messages %}
+        showToast("{{ message|escapejs }}", "{% if message.tags == 'error' %}#d84315{% else %}#4caf50{% endif %}");
+    {% endfor %}
+{% endif %}
+
+$(document).ready(function () {
+    if ($('#fileTable').length) {
+        $('#fileTable').DataTable({
+            paging: true,
+            searching: true,
+            ordering: true,
+            pageLength: 500,
+            lengthChange: false,
+            order: [[3, 'desc']],
+            columnDefs: [{ orderable: false, targets: 1 }]
+        });
+    }
+});
+
+function edit(){
+    const editor = document.getElementById("content");
+    editor.contentEditable = "true";
+    editor.focus();
+}
+
+function searchHighlight() {
+    const editor = document.getElementById("content");
+    const query = document.getElementById("searchBox").value.trim();
+    const scrollTop = editor.scrollTop;
+    if (!query) { editor.innerHTML = editor.innerText; editor.scrollTop = scrollTop; return; }
+    const regex = new RegExp(`(${query})`, "gi");
+    editor.innerHTML = editor.innerText.replace(regex, `<mark style="background:yellow;color:black;">$1</mark>`);
+    editor.scrollTop = scrollTop;
+}
+
+function submitForm() {
+    const editor = document.getElementById("content");
+    document.getElementById("hiddenContent").value = editor.innerText;
+    document.getElementById("contentForm").submit();
+}
+
+
+let currentMatchIndex = -1;
+let matches = [];
+
+function searchHighlight() {
+    const editor = document.getElementById("content");
+    const query = document.getElementById("searchBox").value.trim();
+    const scrollTop = editor.scrollTop;
+
+    if (!query) {
+        editor.innerHTML = editor.innerText; // remove all highlights
+        matches = [];
+        currentMatchIndex = -1;
+        editor.scrollTop = scrollTop;
+        return;
+    }
+
+    const regex = new RegExp(`(${query})`, "gi");
+    const text = editor.innerText;
+
+    // Wrap all matches in <mark class="searchMatch">
+    editor.innerHTML = text.replace(regex, `<mark class="searchMatch">$1</mark>`);
+
+    matches = Array.from(editor.querySelectorAll("mark.searchMatch"));
+    currentMatchIndex = -1;
+    editor.scrollTop = scrollTop;
+}
+
+function nextMatch() {
+    if (matches.length === 0) return;
+
+    // Reset previous highlight
+    matches.forEach(m => m.style.backgroundColor = "yellow");
+
+    // Move index to next match
+    currentMatchIndex++;
+    if (currentMatchIndex >= matches.length) currentMatchIndex = 0;
+
+    const current = matches[currentMatchIndex];
+    current.style.backgroundColor = "orange"; // highlight current
+    current.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// Press Enter to go to next match
+document.getElementById("searchBox").addEventListener("keydown", function(e){
+    if (e.key === "Enter") {
+        e.preventDefault(); // prevent form submit
+        nextMatch();
+    }
+});
+
+
+let originalContent = "";
+
+// Enable edit mode
+function enableEdit() {
+    const editor = document.getElementById("content");
+    originalContent = editor.innerText; // save current content
+    editor.contentEditable = "true";
+    editor.focus();
+
+    // Show Save/Cancel, hide Edit
+    document.getElementById("editBtn").style.display = "none";
+    document.getElementById("saveBtn").style.display = "inline-block";
+    document.getElementById("cancelBtn").style.display = "inline-block";
+}
+
+// Cancel editing
+function cancelEdit() {
+    const editor = document.getElementById("content");
+    editor.innerText = originalContent; // revert to original
+    editor.contentEditable = "false";
+
+    // Hide Save/Cancel, show Edit
+    document.getElementById("editBtn").style.display = "inline-block";
+    document.getElementById("saveBtn").style.display = "none";
+    document.getElementById("cancelBtn").style.display = "none";
+}
+
+// Save content
+function submitForm() {
+    const editor = document.getElementById("content");
+    document.getElementById("hiddenContent").value = editor.innerText;
+    document.getElementById("contentForm").submit();
+}
+
+
+</script>
+
+</body>
+</html>

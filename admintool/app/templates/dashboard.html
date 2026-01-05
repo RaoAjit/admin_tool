@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard / File Browser</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+    body { background:#121212; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; color:#f0f0f0; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:15px 25px; background-color:#1f1f1f; border-bottom:1px solid #333; }
+    header h2 { margin:0; font-weight:600; }
+    #searchBox { width:300px; padding:8px 12px; border-radius:25px; border:none; outline:none; background-color:#2b2b2b; color:#f0f0f0; font-size:14px; }
+    #searchBox::placeholder { color:#aaa; }
+    button { padding:8px 16px; border-radius:12px; border:none; cursor:pointer; font-size:14px; margin-left:10px; transition: all 0.3s ease; font-weight:500; }
+    button a {text-decoration: none;}
+    #editBtn{background-color:#ffcc00;color:#111;} #editBtn:hover{background-color:#ffdb4d;}
+    #saveBtn{background-color:#4caf50;color:#fff;} #saveBtn:hover{background-color:#66bb6a;}
+    #logoutBtn{background-color:#d84315;color:#fff;} #logoutBtn:hover{background-color:#ff5722;}
+    #toast{visibility:hidden;min-width:250px;background-color:#4caf50;color:white;text-align:center;border-radius:8px;padding:12px 20px;position:fixed;top:20px;right:20px;opacity:0;transition:opacity 0.5s ease, visibility 0.5s;z-index:1000;}
+    #toast.show{visibility:visible;opacity:1;}
+    .card { background:#2b2b2b; padding:12px 18px; border-radius:8px; margin:8px; display:inline-block; min-width:120px; text-align:center; }
+    #statsContainer { display:flex; flex-wrap:wrap; gap:10px; }
+    ul { list-style:none; padding-left:0; }
+    li { background:#2b2b2b; padding:8px 12px; margin:6px 0; border-radius:6px; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+
+<header>
+<h2>Welcome, {{ request.user.username }}</h2>
+
+<div style="display: flex; justify-content: center;">
+    <div style="position:relative; display:inline-block; width:100%; max-width:300px;">
+    <i class="fa-solid fa-user" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#8ab4f8; pointer-events:none;"></i>
+
+    <select name="" id="" style="width:100%; padding:10px 14px 10px 38px; font-size:14px; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:#1f1f1f; color:#f0f0f0; border:1px solid #444; border-radius:6px; appearance:none; cursor:pointer;">
+        <option value="">{{ request.user.username }}</option>
+        {% if request.user.is_superuser %}
+            <option value="">user_type: Admin</option>
+        {% else %}
+            <option value="">user_type: Staff</option>
+        {% endif %}
+        {% for detail in userdetail %}
+            <option value="{{ detail.section }}">{{ detail.section }} - {{ detail.permission }}</option>
+        {% endfor %}
+    </select>
+</div>
+    <button id="logoutBtn"><a href="{% url 'logout' %}" style="color:white;text-decoration:none;">Logout</a></button>
+</div>
+</header>
+
+<div style="padding:15px;">
+
+<div class="panel-buttons" style="margin-bottom:20px;">
+    {% for apipoints in apilist %}
+       {% for key, value in apipoints.items %}
+          <a href="/{{ value }}/"><button>{{ key }}</button></a>
+       {% endfor %}
+    {% endfor %}
+</div>
+
+<!-- Log Summary -->
+<div style="display: flex; justify-content: start;">
+{% for data in log_summary %}
+<div style="margin-left: 20px; background-color: #272727; border-radius: 10px;">
+<h3>{{data.section}} 📊</h3>
+<div id="logSummary">
+    <div class="">Last 7 days: {{data.last7 }}</div>
+    <div class="">Last 30 days: {{data.last30 }}</div>
+    <div class="">Last 90 days: {{data.last90}}</div>
+</div>
+</div>
+{% endfor %}
+</div>
+
+<!-- Section Stats -->
+<h3>Files & Folders per Section 📁</h3>
+<div id="statsContainer">
+    {% for section, counts in section_counts.items %}
+        <div class="card">
+            <strong>{{ section }}</strong><br>
+            Files: {{ counts.files }}<br>
+            Folders: {{ counts.folders }}
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Chart -->
+
+
+<div id="toast">Updated Successfully!</div>
+
+<script>
+
+</script>
+
+</body>
+</html>
